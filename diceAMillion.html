@@ -1,0 +1,47 @@
+<button id="playDice">Play Dice a Million</button>
+
+<script>
+document.getElementById("playDice").addEventListener("click", async () => {
+  // Open a tab immediately to avoid popup blockers.
+  const tab = window.open("about:blank", "_blank");
+
+  if (!tab) {
+    alert("Allow pop-ups to play the game.");
+    return;
+  }
+
+  try {
+    const dataURL =
+      "https://gn-math.dev/s/EE0_FEFXflkxUx5iECccXCcNRB9_GDdDXysSex5LLgFQGDgFPFIDP1U1C0ouEEEtPBc7WV82FTodSmUOQQI_.json";
+
+    const response = await fetch(dataURL);
+
+    if (!response.ok) {
+      throw new Error("Could not load the game list.");
+    }
+
+    const games = await response.json();
+
+    const game = games.find(
+      item => item.name?.toLowerCase() === "dice a million"
+    );
+
+    if (!game) {
+      throw new Error("Dice a Million was not found.");
+    }
+
+    // Let GN-Math load the actual game in the new tab.
+    tab.location.href =
+      "https://gn-math.dev/?id=" +
+      encodeURIComponent(game.id) +
+      "#embed";
+
+  } catch (error) {
+    tab.close();
+    alert(
+      "Couldn't open the game. The website may block cross-site data requests. " +
+      error.message
+    );
+  }
+});
+</script>
