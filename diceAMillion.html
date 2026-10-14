@@ -1,64 +1,76 @@
 
 <button id="playDice">Play Dice a Million</button>
-<p id="status"></p>
 
 <script>
 document.getElementById("playDice").addEventListener("click", async () => {
-  const status = document.getElementById("status");
+  // Open about:blank directly from the click.
   const tab = window.open("about:blank", "_blank");
-
   if (!tab) {
-    status.textContent = "Allow pop-ups for this site, then try again.";
+    alert("Please allow pop-ups.");
     return;
   }
 
   try {
-    status.textContent = "Loading game...";
-
     const origin = "https://gn-math.dev";
     const dataPath =
       "/s/EE0_FEFXflkxUx5iECccXCcNRB9_GDdDXysSex5LLgFQGDgFPFIDP1U1C0ouEEEtPBc7WV82FTodSmUOQQI_.json";
 
-    const response = await fetch(origin + dataPath + "?t=" + Date.now());
-
-    if (!response.ok) {
-      throw new Error("Game list returned HTTP " + response.status);
-    }
+    // Get the game's name, ID, and content URL.
+    const response = await fetch(origin + dataPath);
+    if (!response.ok) throw new Error("Could not load game data.");
 
     const games = await response.json();
     const game = games.find(
-      g => g.name?.trim().toLowerCase() === "dice a million"
+      g => g.name?.toLowerCase() === "dice a million"
     );
 
-    if (!game || !game.url) {
-      throw new Error("Dice a Million was not found in the game list.");
-    }
+    if (!game) throw new Error("Game not found.");
 
+    // Resolve the actual game HTML URL.
     const coverPath =
       "/s/EE0_FEFXflkxUx5iECccXCcNRB9_GDdDXysSex5LLgFQGDgFPFIDP1U3F08uFkEtPBc7WV8/";
     const htmlPath =
       "/s/EE0_FEFXflkxUx5iECccXCcNRB9_GDdDXysSex5LLgFQGDgFPFIDP1U8DFQnJF8MOBh9/";
 
     const path = String(game.url)
-      .replaceAll("{COVER_URL}", coverPath)
-      .replaceAll("{HTML_URL}", htmlPath);
+      .replace("{COVER_URL}", coverPath)
+      .replace("{HTML_URL}", htmlPath);
+
+    // If the game is already hosted at a full URL, open it there.
+    if (/^https?:\/\//i.test(path)) {
+      tab.location.href = path;
+      return;
+    }
 
     const gameURL = new URL(path, origin).href;
+    const gameResponse = await fetch(gameURL);
+    if (!gameResponse.ok) throw new Error("Could not load game HTML.");
 
-    // Navigate directly so the game's own scripts and assets can load.
-    tab.location.replace(gameURL);
-    status.textContent = "Game opened.";
+    let html = await gameResponse.text();
+
+    // Set the base URL so relative game assets can load.
+    const base = new URL(
+      gameURL.substring(0, gameURL.lastIndexOf("/") + 1)
+    ).href;
+
+    const baseTag = `<base href="${base}">`;
+
+    if (/<base\b[^>]*>/i.test(html)) {
+      html = html.replace(/<base\b[^>]*>/i, baseTag);
+    } else if (/<head\b[^>]*>/i.test(html)) {
+      html = html.replace(/<head\b[^>]*>/i, m => m + baseTag);
+    } else {
+      html = baseTag + html;
+    }
+
+    // Put only the game document into about:blank.
+    tab.document.open();
+    tab.document.write(html);
+    tab.document.close();
 
   } catch (error) {
     tab.close();
-    status.textContent =
-      "Could not load game: " + error.message +
-      ". The source site may be blocking cross-origin requests.";
+    alert("Unable to load the game: " + error.message);
   }
 });
-</script>
-
-
-<script>
-  window.open("https://gn-math.dev/?id=759#embed", "_blank");
 </script>
